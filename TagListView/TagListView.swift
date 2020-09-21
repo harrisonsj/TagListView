@@ -205,10 +205,19 @@ open class TagListView: UIView {
     private(set) var tagBackgroundViews: [UIView] = []
     private(set) var rowViews: [UIView] = []
     private(set) var tagViewHeight: CGFloat = 0
-    private(set) var rows = 0 {
-        didSet {
-            invalidateIntrinsicContentSize()
+    private(set) var rows = 0
+    public var preferredMaxLayoutWidth: CGFloat = 0{
+        didSet{
+            rearrangeViews()
         }
+    }
+    
+    override open var intrinsicContentSize: CGSize {
+        var height = CGFloat(rows) * (tagViewHeight + marginY)
+        if rows > 0 {
+            height -= marginY
+        }
+        return CGSize(width: frame.width, height: height)
     }
     
     // MARK: - Interface Builder
@@ -223,6 +232,7 @@ open class TagListView: UIView {
     
     open override func layoutSubviews() {
         defer { rearrangeViews() }
+        self.preferredMaxLayoutWidth = self.frame.size.width;
         super.layoutSubviews()
     }
     
@@ -258,7 +268,7 @@ open class TagListView: UIView {
         var currentRowView: UIView!
         var currentRowTagCount = 0
         var currentRowWidth: CGFloat = 0
-        let frameWidth = frame.width
+        //let frameWidth = frame.width
         
         let directionTransform = isRtl
             ? CGAffineTransform(scaleX: -1.0, y: 1.0)
@@ -268,7 +278,7 @@ open class TagListView: UIView {
             tagView.frame.size = tagView.intrinsicContentSize
             tagViewHeight = tagView.frame.height
             
-            if currentRowTagCount == 0 || currentRowWidth + tagView.frame.width > frameWidth {
+            if currentRowTagCount == 0 || currentRowWidth + tagView.frame.width > preferredMaxLayoutWidth {
                 currentRow += 1
                 currentRowWidth = 0
                 currentRowTagCount = 0
@@ -279,7 +289,7 @@ open class TagListView: UIView {
                 rowViews.append(currentRowView)
                 addSubview(currentRowView)
 
-                tagView.frame.size.width = min(tagView.frame.size.width, frameWidth)
+                tagView.frame.size.width = min(tagView.frame.size.width, preferredMaxLayoutWidth)
             }
             
             let tagBackgroundView = tagBackgroundViews[index]
@@ -304,28 +314,19 @@ open class TagListView: UIView {
             case .left:
                 currentRowView.frame.origin.x = 0
             case .center:
-                currentRowView.frame.origin.x = (frameWidth - (currentRowWidth - marginX)) / 2
+                currentRowView.frame.origin.x = (preferredMaxLayoutWidth - (currentRowWidth - marginX)) / 2
             case .trailing: fallthrough // switch must be exahutive
             case .right:
-                currentRowView.frame.origin.x = frameWidth - (currentRowWidth - marginX)
+                currentRowView.frame.origin.x = preferredMaxLayoutWidth - (currentRowWidth - marginX)
             }
             currentRowView.frame.size.width = currentRowWidth
             currentRowView.frame.size.height = max(tagViewHeight, currentRowView.frame.height)
         }
         rows = currentRow
-        
         invalidateIntrinsicContentSize()
     }
     
     // MARK: - Manage tags
-    
-    override open var intrinsicContentSize: CGSize {
-        var height = CGFloat(rows) * (tagViewHeight + marginY)
-        if rows > 0 {
-            height -= marginY
-        }
-        return CGSize(width: frame.width, height: height)
-    }
     
     private func createNewTagView(_ title: String) -> TagView {
         let tagView = TagView(title: title)
@@ -362,8 +363,7 @@ open class TagListView: UIView {
 
     @discardableResult
     open func addTag(_ title: String) -> TagView {
-        defer { rearrangeViews() }
-        return addTagView(createNewTagView(title))
+        return addTags([title])[0]
     }
     
     @discardableResult
@@ -373,11 +373,7 @@ open class TagListView: UIView {
     
     @discardableResult
     open func addTagView(_ tagView: TagView) -> TagView {
-        defer { rearrangeViews() }
-        tagViews.append(tagView)
-        tagBackgroundViews.append(UIView(frame: tagView.bounds))
-        
-        return tagView
+        return addTagViews([tagView])[0]
     }
     
     @discardableResult
